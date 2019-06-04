@@ -1,0 +1,132 @@
+#include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+// Ca sa va amintiti macrourile, le-am ales pe ele in loc de functii.
+// E destul de greu sa explic aici ce am explicat la laborator pentru ca
+// probleme cu matrice se explica cel mai bine grafic, pe tabla.
+
+// Cum ziceam si la laborator, abordarea asta este cea in care tinem matricea triunghiulara
+// ca un vector in care alocam doar campurile din matrice unde nu avem zero-uri.
+
+#define TRM_SIZE(dim) (((dim)*(dim+1))/2)
+// Asta e cel mai simplu dintre macro-uri. Practic, noua ne trebuie sa stim
+// cate elemente sa alocam pentru o matrice superior sau inferior triunghiulara.
+// Cum v-ati prins si voi la laborator, daca N este dimensiunea, atunci marimea
+// unei matrice triunghiulare este fara sa numaram zero-urile este de (N*(N+1))/2.
+
+#define TRM_OFFSET(r,c) (TRM_SIZE((r)-1)+(c))
+// Asta e formula ce traduce doi indici (unul de rand si unul de coloana) intr-un
+// singur indice, de vector. E mai bine sa va luati exemple numerice si sa faceti
+// pe pasi, cum v-am aratat la laborator.
+// Ca si ajutoare:
+// TRM_SIZE((r)-1) ne duce pe linia de unde luam elementul din matrice
+// + c ne muta fix pe elementul respectiv din coloana.
+
+#define TRM_INDEX(m,r,c) (m)[(TRM_OFFSET((r),(c)))]
+// Formula asta returneaza elementul din vector care ar fi pe pozitia r si c daca
+// vectorul ar fi facut ca matrice. Este doar apelarea macro-ului de mai sus, cu
+// (m)[] in fata astfel incat sa returnam elementul de la acel indice.
+
+#define TRM_UINDEX(m,r,c,d) (m)[(TRM_SIZE(d)-TRM_SIZE((d)-(r))+(c)-(r))]
+// Pentru matricea superior triunghiulara vom folosi alta formula, pentru ca orientarea
+// acesteia este alta. Aici e mult mai greu de explicat in cuvinte, deci trebuie neaparat
+// sa va luati un exemplu numeric si sa urmariti cu pixul pe hartie fiecare operatie de la
+// stanga spre dreapta
+// Ca si ajutoare:
+// (TRM_SIZE(d)-TRM_SIZE((d)-(r)) ne muta tot pe care vom avea elementul, dar pentru ca matricea
+// superioara are alta configuratie, nu se pastreaza formula de la cea inferioara.
+// Practic, ne mutam pe ultimul element cu TRM_SIZE(d) si apoi mergem inapoi r linii.
+// (c)-(r) ne muta pe elementul de pe coloana corecta. De ce nu e la fel ca la inferioara? Pentru
+// ca aici zero-urile incep de la stanga, deci orientarea e invers. Trebuie sa scadem din numarul
+// de coloane numarul de zero-uri de pe linia respectiva (r este egal cu numarul de zero-uri).
+
+
+int main (void)
+{
+    int dimensiune;
+    int *infTr, *supTr, *matRezultat;
+
+    // Citim N-ul pentru matricele NxN.
+    printf ("Dimensiunea matricei: ");
+    scanf ("%2d", &dimensiune);
+
+    // Nu ati mai vazut calloc, dar este la fel ca malloc cu 2 mici diferente.
+    // Are doi parametri, primul este numarul de elemente, al doilea este marimea
+    // unui element. Deci putin diferit fata de malloc, unde faceam direct inmultirea,
+    // intr-un singur parametru. Avantajul este ca initializeaza vectorii cu 0 pe toate pozitiile.
+    // lucru de care avem nevoie si care trebuia facut explicit daca foloseam malloc.
+    infTr = calloc(TRM_SIZE(dimensiune), sizeof(int));
+    supTr = calloc(TRM_SIZE(dimensiune), sizeof(int));
+    matRezultat = calloc(dimensiune*dimensiune, sizeof(int));
+
+    // O sa populam matricele cu valori random de doua cifre.
+    // srand este un generator de numere pseudo-aleatoare (diferit de numere aleatoare, google the difference :D).
+    // Ia ca parametru un intreg ce este folosit ca seed pentru generarea de numere. Comun este sa da ii dam
+    // time(NULL) cand nu ne pasa. time(NULL) da numarul de secunde de la 1 Ianurie 1970 pana la data curenta.
+    //srand (time(NULL));
+    //srand (0);
+    for (int i = 0; i < TRM_SIZE(dimensiune); i++)
+    {
+        infTr[i] = 100.0*rand() / RAND_MAX;
+        supTr[i] = 100.0*rand() / RAND_MAX;
+    }
+
+    // Aici facem inmultirea in sine. Indecsii sunt inversati cand folosim macro-urile
+    // pentru inferior si superior pentru ca asa e inmultirea matricelor :D, linie cu coloana.
+    for (int i = 0; i < dimensiune; i++)
+    {
+        for (int j = 0; j < dimensiune; j++)
+        {
+            for (int k = 0; k < dimensiune; k++)
+            {
+                // Asta e doar o linie de cod, dar am scris-o pe 3 ca sa fie mai lizibil.
+                matRezultat[i*dimensiune + j] +=
+                TRM_INDEX(infTr, i, k) *
+                TRM_UINDEX(supTr, k, j, dimensiune);
+            }
+        }
+    }
+
+    // Afisam matricele pe rand, prima cea inferioara. Am folosit %2d la printf
+    // pentru ca stiu deja ca vor fi 2 cifre in fiecare intreg. Asta ajuta sa avem
+    // o matrice scrisa frumos si aliniat.
+    puts ("Inferior triunghiulara");
+    for (int i = 0; i < dimensiune; i++)
+    {
+        for (int j = 0; j < dimensiune; j++)
+        {
+            printf (" %2d", TRM_INDEX(infTr, i, j));
+        }
+        putchar ('\n');
+    }
+
+    // La fel ca mai sus.
+    puts ("Superior triunghiulara");
+    for (int i = 0; i < dimensiune; i++)
+    {
+        for (int j = 0; j < dimensiune; j++)
+        {
+            printf (" %2d", TRM_UINDEX(supTr, i, j, dimensiune));
+        }
+        putchar ('\n');
+    }
+
+    // La fel ca mai sus, dar aici folosim 4d pentru ca inmultirea intre
+    // doua numere cu 2 cifre rezulta intr-un numar de maxim 4 cifre.
+    puts ("Rezultat");
+    for (int i = 0; i < dimensiune; i++)
+    {
+        for (int j = 0; j < dimensiune; j++)
+        {
+            printf (" %4d", matRezultat[i*dimensiune + j]);
+        }
+        putchar ('\n');
+    }
+
+    // Eliberam toata memoria.
+    free (supTr);
+    free (infTr);
+    free (matRezultat);
+    return 0;
+}

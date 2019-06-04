@@ -1,0 +1,37 @@
+Problema este destul de simpla, dar ar fi foarte complicata fara uniuni. Daca definim o uniune ce tine un 
+short int (2 octeti) si un vector cu doua caractere, atunci avem o potrivire perfecta intre spatiul ocupat
+de numarul intreg si cele doua caractere deci vectorul de caractere va tine toti cei 16 biti din numarul intreg.
+
+Daca facem un simplu swap pe cei doi biti, am obtinut rezultatul dorit.
+
+#include <stdio.h>
+#include <stdlib.h>
+
+union reverse
+{
+    short int numar;
+    char bytes[2];
+};
+
+short int codify(short int parametruNumeric)
+{
+    union reverse rev;
+    char aux;
+
+    rev.numar = parametruNumeric;
+
+    aux = rev.bytes[0];
+    rev.bytes[0] = rev.bytes[1];
+    rev.bytes[1] = aux;
+
+    return rev.numar;
+}
+
+int main()
+{
+    short int numar;
+    scanf("%hd", &numar);
+    printf("%hd", codify(numar));
+
+    return 0;
+}

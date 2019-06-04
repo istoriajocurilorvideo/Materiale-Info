@@ -1,0 +1,75 @@
+typedef struct litera
+{
+    int nr_aparitii;
+    char lit;
+} litera;
+
+#define NUMAR_LITERE 26
+
+int main()
+{
+    FILE *fp = fopen("fisier.txt", "r");
+
+    // Ne mutam la final.
+    fseek(fp, 0, SEEK_END);
+    // Luam indexul de la final, practic marimea in octeti a fisierului.
+    long fsize = ftell(fp);
+    // Ne mutam la inceput.
+    fseek(fp, 0, SEEK_SET);
+
+    // Vector de marime fsize.
+    char fileContent[fsize];
+
+    // Citim fsize*sizeof(char) caractere din fp si le punem in fileContent.
+    fread(fileContent, fsize, sizeof(char), fp);
+
+    // Inlocuim EOF cu 0.
+    fileContent[fsize] = 0;
+
+    fclose(fp);
+    printf("%s", fileContent);
+
+    // un vector de frecventa pentru litere. pozitia 0 este pentru 'a', 1 este pentru 'b' etc.
+    litera litere[NUMAR_LITERE];
+
+    for(int i = 0; i < NUMAR_LITERE; i++)
+    {
+        litere[i].lit = i + 'a';
+        litere[i].nr_aparitii = 0;
+    }
+
+    for(int i = 0; i < fsize; i++)
+    {
+        // Tranformam literele mari in mici, pentru ca cerinta spune ca nu conteaza case-ul.
+        if (fileContent[i] >= 'A' && fileContent[i] <= 'Z')
+            fileContent[i] += 32;
+
+        // Daca am dat de o litera mica, incrementam numarul de aparitii de pe pozitia
+        // corespunzatoare. De ex, daca fileContent[i] este litera c, atunci 'c' - 'a' ne
+        // da 2, iar litere[2] stim ca este pozitia pentru litera c.
+        if(fileContent[i] >= 'a' && fileContent[i] <= 'z')
+        {
+            litere[fileContent[i] - 'a'].nr_aparitii++;
+        }
+    }
+
+    // Mai trebuie doar sa sortam vectorul. Folosim iar un bubble sort simplu.
+   for (int i = 0; i < NUMAR_LITERE-1; i++)
+   {
+      for (int j = 0; j < NUMAR_LITERE-i-1; j++)
+      {
+          if (litere[j].nr_aparitii < litere[j+1].nr_aparitii)
+          {
+              litera temp = litere[j];
+              litere[j] = litere[j+1];
+              litere[j+1] = temp;
+          }
+      }
+   }
+
+    // Afisarea rezultatelor.
+    for(int i = 0; i < NUMAR_LITERE; i++)
+        printf("%c %d \n", litere[i].lit, litere[i].nr_aparitii);
+
+    return 0;
+}

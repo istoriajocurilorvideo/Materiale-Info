@@ -1,0 +1,207 @@
+Structura si macro-urile sunt destul de clare, pentru ca le-am tot discutat la laborator. Eu am ales sa fac un macro si pentru media de la de examen, nu doar
+pentru media de la admitere. 
+
+In functia citesteCandidati primi date de la utilizator pentru fiecare din campurile unui candidat (pentru explicatii asupra
+operatiilor facute la citirea campului de nume, puteti sa vedeti in txt-ul cu problema 5). Sortarea la insertie in urmatorul mod: daca am citit i elemente
+pana acum, luam un j=i-1, adica indexul ultimului element pus in vector. A se tine in vedere ca vectorul pana la pozitia i este sortat (pentru ca sortam pe
+masura ce citim). Mergem inapoi cu j cat timp numele candidatului noi este mai mic decat numele candidatului de pe pozitia j si daca aceste doua conditii sunt 
+indeplinite, putem muta elementul de pe pozitia j cu o pozitie la dreapta. Practic, mutam la dreapta toate elementele pana gasim pozitia pe care trebuie sa fie 
+elementul nostru.
+
+Apoi in repartizeazaCandidati avem nevoie de o sortare dupa medie, lucru pe care l-am facut cu un bubble sort, ca sa fie putin diferit si sa mai vedeti alt
+algoritm de sortare, fie el si cel mai ineficient. Odata sortati, marchez primii candidati cu Y si pe ceilalti N sau spatiu.
+
+In functia de intreabaBazaDeDate am implementat functionalitatea de meniu ce interogheaza baza de date de candidati. system("CLS") curata consola (clrcsr de care
+v-am zis la laborator merge doar in TURBO C, am uitat asta...). Dupa curatenie, afisam meniul si avem un switch ce decide ce vrea sa afiseze utilizatorul, chemand
+fie functia ce afiseaza toti candidatii, fie o functie ce ia ca parametru un caracter decizionat (fie 'Y', fie 'N', fie ' ') si afiseaza doar candidatii de la buget
+, de la taxa sau cei care au fost respinsi.
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define PRAG_PROMOVABILITATE 5
+#define MEDIE_EXAMEN(nota_info, nota_mate) 0.5*nota_info + 0.5*nota_mate
+#define MEDIE_ADMITERE(medie_examen, medie_bac) 0.8*medie_examen + 0.2*medie_bac
+
+typedef struct candidat
+{
+    int nr_legitimatie;
+    char nume[20];
+    float nota_mate;
+    float nota_info;
+    float nota_bac;
+    float medie;
+    char admis;
+    char buget;
+} candidat;
+
+void citesteCandidati(int nr_candidati, candidat vectorCandidati[])
+{
+    for(int i=0; i < nr_candidati; i++)
+    {
+        candidat candidatNou;
+
+        printf("Introduceti numarul de legitimatie: \n");
+        scanf("%d", &candidatNou.nr_legitimatie);
+
+        printf("Numele candidatului: \n");
+        getchar();
+        fgets(candidatNou.nume, sizeof(candidatNou.nume), stdin);
+        fflush(stdin);
+        candidatNou.nume[strcspn(candidatNou.nume, "\n")] = 0;
+
+        printf("Nota la mate: \n");
+        scanf("%f", &candidatNou.nota_mate);
+
+        printf("Nota la info: \n");
+        scanf("%f", &candidatNou.nota_info);
+
+        printf("Nota la BAC: \n");
+        scanf("%f", &candidatNou.nota_bac);
+
+        if (i < nr_candidati - 1)
+        {
+            printf("Urmatorul candidat: \n");
+        }
+
+        candidatNou.medie = MEDIE_ADMITERE(MEDIE_EXAMEN(candidatNou.nota_info, candidatNou.nota_mate), candidatNou.nota_bac);
+        if (candidatNou.medie > PRAG_PROMOVABILITATE)
+        {
+            candidatNou.admis = 'Y';
+        }
+        else
+        {
+             candidatNou.admis = 'N';
+        }
+
+        int j = i-1;
+        while (j >= 0 && strcmp(vectorCandidati[j].nume, candidatNou.nume) > 0)
+        {
+            vectorCandidati[j+1] = vectorCandidati[j];
+            j--;
+        }
+        vectorCandidati[j+1] = candidatNou;
+    }
+}
+
+void afiseazaCandidati(int nr_candidati, candidat vectorCandidati[])
+{
+    for(int i=0; i < nr_candidati; i++)
+    {
+        printf("Candidatul %s cu media %f \n", vectorCandidati[i].nume, vectorCandidati[i].medie);
+    }
+}
+
+void afiseazaCandidatiSelectiv(int nr_candidati, candidat vectorCandidati[], char selectie)
+{
+    for(int i=0; i < nr_candidati; i++)
+    {
+        if (vectorCandidati[i].buget == selectie)
+        {
+             printf("Candidatul %s cu media %f \n", vectorCandidati[i].nume, vectorCandidati[i].medie);
+        }
+    }
+}
+
+void bubbleSortCandidatiDupaMedie(int nr_candidati, candidat vectorCandidati[])
+{
+   int i, j;
+   for (i = 0; i < nr_candidati-1; i++)
+   {
+      for (j = 0; j < nr_candidati-i-1; j++)
+      {
+          if (vectorCandidati[j].medie < vectorCandidati[j+1].medie)
+          {
+              candidat candidatTemp = vectorCandidati[j];
+              vectorCandidati[j] = vectorCandidati[j+1];
+              vectorCandidati[j+1] = candidatTemp;
+          }
+      }
+   }
+}
+
+void repartizeazaCandidati(int nr_candidati, candidat vectorCandidati[])
+{
+    int nr_candidati_repartizati = (nr_candidati*75)/100;
+    bubbleSortCandidatiDupaMedie(nr_candidati, vectorCandidati);
+
+    for(int i = 0; i < nr_candidati_repartizati; i++)
+    {
+        vectorCandidati[i].buget = 'Y';
+    }
+
+    for(int i = nr_candidati_repartizati; i < nr_candidati; i++)
+    {
+        if (vectorCandidati[i].medie > PRAG_PROMOVABILITATE)
+        {
+            vectorCandidati[i].buget = 'N';
+        }
+        else
+        {
+            vectorCandidati[i].buget = ' ';
+        }
+    }
+}
+
+void intreabaBazaDeDate(int nr_candidati, candidat vectorCandidati[])
+{
+    int optiune = 5;
+    do
+    {
+        system("CLS");
+        printf("1. Pentru afisarea tuturor candidatilor. \n");
+        printf("2. Pentru afisarea tuturor candidatilor de la buget. \n");
+        printf("3. Pentru afisarea tuturor candidatilor de la taxa. \n");
+        printf("4. Pentru afisarea tuturor candidatilor respinsi. \n");
+        printf("Altceva. Pentru iesire. \n");
+
+        switch(optiune)
+        {
+            case 1:
+            {
+                afiseazaCandidati(nr_candidati, vectorCandidati);
+                break;
+            }
+            case 2:
+            {
+                afiseazaCandidatiSelectiv(nr_candidati, vectorCandidati, 'Y');
+                break;
+            }
+            case 3:
+            {
+                afiseazaCandidatiSelectiv(nr_candidati, vectorCandidati, 'N');
+                break;
+            }
+            case 4:
+            {
+                afiseazaCandidatiSelectiv(nr_candidati, vectorCandidati, ' ');
+                break;
+            }
+            default:
+            {
+
+            }
+        }
+
+        fflush(stdin);
+        optiune = getchar() - 48;
+    }
+    while ((optiune == 1) || (optiune == 2) || (optiune == 3) || (optiune == 4) || (optiune == 5));
+}
+
+int main()
+{
+    candidat vectorCandidati[100];
+
+    int nr_candidati;
+    printf("Introduceti numarul de candidati la concursul de admitere: \n");
+    scanf("%d", &nr_candidati);
+
+    citesteCandidati(nr_candidati , vectorCandidati);
+    repartizeazaCandidati(nr_candidati, vectorCandidati);
+    afiseazaCandidati(nr_candidati, vectorCandidati);
+
+    intreabaBazaDeDate(nr_candidati, vectorCandidati);
+    return 0;
+}

@@ -1,0 +1,88 @@
+Am pus pragma pack (1) ca sa fie realista afisarea cu sizeof cand incercam optimizez spatiul alocat de structura.
+In primul rand sa analizam cum alocam campurile de biti:
+- 1 bit pentru norma, pentru ca acest camp are valoare binara (0 part-time, 1 full-time).
+- 7 (0-127) biti pentru varsta, deoarece 6 ar fi prea putin (0-63).
+- 43 de biti dintr-un long long de 64 de biti. Motivul este ca avem nevoie de 43 de biti pentru a afisa orice numar de 13 cifre.
+- 30 de caractere pentru nume. Aici nu avem ce face.
+Odata decisi asupra tipurilor si largimii campurilor de biti, trebuie sa le decidem ordinea. Cum v-am aratat la laborator, aceasta
+conteaza foarte mult. O regula sigura este sa le punem in ordinea marimilor in biti, crescator.
+Cred ca 38 de bytes (1+1+6+30) este spatiul optim la care putem ajunge. 43 de biti au loc in 6 octeti (6x8 = 48). Nu am reusit sa conving
+compilatorul sa aloce un singur octet pentru cele doua campuri de 1 si 7 biti.
+
+In rest programul e destul de simplu. Citirea in campurile de biti se face totusi fara scanf direct pentru ca nu putem accesa direct memoria
+la un camp de biti (altfel spus, nu putem avea un pointer catre un camp de biti). In general, citirea intr-un camp de biti se face cu o variabila
+auxiliara in care citim si apoi asignam valoarea acesteia campului de biti.
+
+Campul de norma am decis sa-l citesc folosind getchar() pentru ca l-am facut la laborator si pentru ca este mai eficient oricum (nu mai definim un
+char de pomana). Am facut fflush(stdin) pentru a curata canalul de citire inainte de folosirea lui getchar(), altfel getchar() nu s-ar fi blocat
+si ar fi citit ceva ramas dinainte.
+
+La nume am decis sa ma complic putin. Folosesc primul getchar() pentru a bloca consola in faza de citire de caracter din moment ce functia fgets()
+nu face acest lucru. Functia fgets() citeste linia curenta din consola pana da de un \n sau EOF (newline-ul este inclus in stringul citit) si pune si
+caracterul de sfarsit de string la final. Ia ca parametru adresa unde va pune linia citita (pentru ca este vector de caractere, este deja pointer, nu e nevoie de &), 
+marimea sau numarul de caracterepe care sa-l citeasca si canalul de unde citeste (stdin reprezinta consola, dar puteam de exemplu sa punem in aceasta functie si fisier text
+...vom face saptamana aceasta). Am facut iar fflush(stdin) pentru cazul in care utilizatorul introduce mai mult de 30 de caractere, pentru ca nu vrem sa ramana in canalul
+de citire caractere aiurea. Urmatoarea linie vrea practic sa elimine caracterul newline de la finalul liniei citite (altfel, daca afisam numele, o sa puna newline aiurea).
+strcspn calculeaza lungimea unui string ce contine doar caractere ce nu sunt in al doilea parametru (in cazul nostru va da mereu numarul de caractere citite minus 1).
+
+Varsta si CNP nu am de ales decat sa le citesc in variabile auxiliare si sa le pun in campurile de biti.
+
+Gasirea barbatilor mai tineri de 31 de ani se face foarte usor cu o shiftare la dreapta si o comparare cu 0. Toti barbatii mai tineri de 31 de ani vor avea valori de 1
+doar pe primii 5 biti, deci daca acestia dispar, in momentul shiftarii, rezultatul ar trebui sa fie 0.
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#pragma pack (1)
+
+typedef struct angajat
+{
+    unsigned short norma : 1;
+    unsigned short varsta : 7;
+    unsigned long long cnp : 43;
+    char nume[30];
+} angajat;
+
+int main()
+{
+    int nr_angajati;
+
+    printf("Introduceti numarul de angajati: \n");
+    scanf("%d", &nr_angajati);
+
+    angajat vecAngajati[nr_angajati];
+    for(int i = 0; i < nr_angajati; i++)
+    {
+        printf("Introduceti norma angajatului (0 pentru part-time, 1 pentru full-time): \n");
+        fflush(stdin);
+        vecAngajati[i].norma = getchar() - 48;
+
+        printf("Introduceti numele angajatului (maxim 30 de caractere): \n");
+        getchar();
+        fgets(vecAngajati[i].nume, sizeof(vecAngajati[i].nume), stdin);
+        fflush(stdin);
+        vecAngajati[i].nume[strcspn(vecAngajati[i].nume, "\n")] = 0;
+
+        unsigned short varsta;
+        printf("Introduceti varsta angajatului (maxim 65 de ani): \n");
+        scanf("%hu", &varsta);
+        vecAngajati[i].varsta = varsta;
+
+        unsigned long long cnp;
+        printf("Introduceti CNP-ul angajatului (13 cifre): \n");
+        scanf("%I64u", &cnp);
+        vecAngajati[i].cnp = cnp;
+    }
+
+    printf("Barbatii mai tineri de 31 de ani: \n");
+    for(int i = 0; i < nr_angajati; i++)
+    {
+        if((vecAngajati[i].varsta >> 5) == 0)
+        {
+            printf("%s", vecAngajati[i].nume);
+        }
+    }
+
+    return 0;
+}

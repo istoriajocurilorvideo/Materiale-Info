@@ -1,0 +1,303 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Am facut acest define mai mult din OCD :D. Nu este bine sa hardcodam o valoare
+// de mai multe ori in cod. Daca puneam acest 20 si la nume, si la prenume, si de
+// fiecare data cand facem fread sau fwrite, daca vreodata voiam sa schimba 20 cu alta
+// numar, trebuia sa schimbam in fiecare loc.
+// Un best-practice este sa facem un astfel de define. Cu ocazia asta va mai si amintesc de ele.
+#define LUNGIME_NUME_PRENUME 20
+
+struct student
+{
+    int id;
+    char nume[LUNGIME_NUME_PRENUME];
+    char prenume[LUNGIME_NUME_PRENUME];
+    float nota;
+};
+
+// Functia de creare este modificata putin fata de ce este in cerinta. Acolo avem ca parametru
+// doar numele fisierului pentru ca trebuie sa facem citirea de la tastatura si scrierea in fisier
+// in aceeasi functie. Eu am facut citirea de la tastatura a studentilor in main si ii dau ca parametru
+// acestei functii fisierul unde vreau sa scrie, pointerul la primul student si numarul de studenti pe care ii
+// va scrie.
+void creare(char* numeFisier, struct student* vectorStudenti, int numarStudenti)
+{
+    // Deschidem cu w+ astfel incat, daca fisierul nu exista, va fi creat, iar daca
+    // fisierul contine deja text, va fi curatat.
+    FILE* fptr = fopen(numeFisier, "w+");
+
+    // Scriem numarul de studenti, pentru ca altfel, la citire, nu stim dupa cati studenti
+    // sa ne oprim.
+    fwrite(&numarStudenti, sizeof(int), 1, fptr);
+    for(int i = 0; i < numarStudenti; i++)
+    {
+        // Scriem id-ul. vectorStudenti[i].id este un int, deci trebuie sa dam adresa lui.
+        fwrite(&vectorStudenti[i].id, sizeof(int), 1, fptr);
+
+        // Aici am facut un pic diferit la laboratoror si am schimbat acum. La laborator v-am pus sa
+        // faceti solutia mai eficienta, adica sa scriem doar caracterele cu adevarat folosite. Adica sa
+        // scriem strlen de string si apoi doar caracterele din aceasta lungime. Totusi, chestia asta complica
+        // foarte rau subpunctul in care trebuie sa modificam nota unui student dupa id, pentru ca lungimea
+        // sirurilor scrise este variabila si este mult mai greu sa stim cat sa sarim cu fseek. Asa ca scriem
+        // 20 de caractere si gata. Avantaj? Nu mai trebuie sa punem noi din cod caracterul de sfarsit de string.
+        fwrite(vectorStudenti[i].nume, sizeof(char), LUNGIME_NUME_PRENUME, fptr);
+        fwrite(vectorStudenti[i].prenume, sizeof(char), LUNGIME_NUME_PRENUME, fptr);
+
+        // La fel ca la id. Un singur float scris.
+        fwrite(&vectorStudenti[i].nota, sizeof(float), 1, fptr);
+    }
+
+    // Nu uitati sa inchideti fisierul! Este foarte important, mai ales pentru ca puteti avea cerinte
+    // ce folosesc acelasi fisier. Daca nu dati fclose la fisier (sau il aveti deschis in taskbar) nu il mai
+    // puteti deschide in alta parte, si o sa credeti ca ati gresit altceva.
+    fclose(fptr);
+}
+
+// Daca am facut o functie de scriere, este bine sa facem si una de citire, desi in cerinta nu era specificat.
+// Evident, ea este in mare cam aceeasi chestie ca cea de scriere, dar trebuie sa alocam spatiu pentru cati
+// studenti citim din fisier ca exista. Am dat ca parametru un int prin referinta (ca pointer) pentru ca degeaba
+// returnam noi un pointer catre primul student citit, daca nu stim si cati studenti sunt. Fiind prin referinta, valoarea
+// acelui int va ramane si la intoarcerea programului in main.
+struct student* citire (char* numeFisier, int* numarStudenti)
+{
+    // Deschidem cu r+, desi avem nevoie doar sa citim.
+    FILE* fptr = fopen(numeFisier, "r+");
+
+    // Citim numarul de studenti.
+    fread(numarStudenti, sizeof(int), 1, fptr);
+
+    // Alocam memorie pentru acel numar de studenti.
+    struct student* vectorStudenti = malloc(*numarStudenti*(sizeof(struct student)));
+
+    // Citirea este exact la fel ca scrierea, dar cu fread.
+    for(int i = 0; i < *numarStudenti; i++)
+    {
+        fread(&vectorStudenti[i].id, sizeof(int), 1, fptr);
+        fread(vectorStudenti[i].nume, sizeof(char), LUNGIME_NUME_PRENUME, fptr);
+        fread(vectorStudenti[i].prenume, sizeof(char), LUNGIME_NUME_PRENUME, fptr);
+        fread(&vectorStudenti[i].nota, sizeof(float), 1, fptr);
+    }
+
+    // Nu uitati sa inchideti fisierul! Este foarte important, mai ales pentru ca puteti avea cerinte
+    // ce folosesc acelasi fisier de mai multe ori. Daca nu dati fclose la fisier (sau il aveti deschis in taskbar) nu il mai
+    // puteti deschide in alta parte, si o sa credeti ca ati gresit altceva.
+    fclose(fptr);
+
+    // Returnam pointerul in main.
+    return vectorStudenti;
+}
+
+// Functia de modificare ia ca parametru doar
+void modificare(char* numeFisier)
+{
+    // Deschidem fisierul cu r+ pentru ca ne da oricum drepturi si de scriere si de citire.
+    // Daca il deschidem cu w+ stricam tot fisierul. :D Halal modificare ce mai faceam dupa.
+    FILE* fptr = fopen(numeFisier, "r+");
+
+    // Ne luam id-ul studentului.
+    int idStudentModificat;
+    printf("Introduceti id-ul studentului caruia vreti sa ii schimbati nota: \n");
+    scanf("%d", &idStudentModificat);
+
+    // Ne luam nota noua.
+    float notaModificata;
+    printf("Introduceti noua nota a studentului: \n");
+    scanf("%f", &notaModificata);
+
+    // Citim numarul de studenti.
+    int numarStudenti;
+    fread(&numarStudenti, sizeof(int), 1, fptr);
+    for(int i = 0; i < numarStudenti; i++)
+    {
+        // Vom citim doar id-ul studentului.
+        int idStudentCurent;
+        fread(&idStudentCurent, sizeof(int), 1, fptr);
+
+        // Daca id-ul studentului citit este acelasi cu id-ul citit de tastatura, putem sa intram
+        // in if, unde vom sari peste 2*LUNGIME_NUME_PRENUME (adica 40 de octeti), sau peste toata bucata
+        // unde am scris numele si prenumele. Acest salt pe va lasa fix in locul unde trebuie daca vom scrie
+        // un float, il vom suprascrie pe cel vechi. Dupa asta, mai trebuie doar sa inchidem fisierul si sa parasim functia.
+        if (idStudentModificat == idStudentCurent)
+        {
+            // Saltul se face de la pozitia curenta, deci folosim SEEK_CUR.
+            fseek(fptr, 2*LUNGIME_NUME_PRENUME*sizeof(char), SEEK_CUR);
+            fwrite(&notaModificata, sizeof(float), 1, fptr);
+            fclose(fptr);
+            return;
+        }
+
+        // Daca nu am ajuns inca la id-ul corect, trebuie sa ne mutam in fata si sa sarim peste blocul un de am scris
+        // numele, prenumele si nota (pentru ca peste id deja am trecut cand l-am citit mai sus). Facem asta cu fseek,
+        // unde ii spunem sa sara marimea unui student minus marimea unui int (adica 48-4). Acest salt este facut de la indexul
+        // curent, deci folosim SEEK_CUR.
+        fseek(fptr, sizeof(struct student)-sizeof(int), SEEK_CUR);
+    }
+
+    // Nu uitati sa inchideti fisierul! Este foarte important, mai ales pentru ca puteti avea cerinte
+    // ce folosesc acelasi fisier. Daca nu dati fclose la fisier (sau il aveti deschis in taskbar) nu il mai
+    // puteti deschide in alta parte, si o sa credeti ca ati gresit altceva.
+    fclose(fptr);
+}
+
+// Evident, adaugarea se va face la finalul fisierului.
+void adaugare(char* numeFisier)
+{
+    // Din nou, deschidem cu r+ pentru ca avem nevoie si de scriere si de citire, dar
+    // w+ sterge tot cand deschide fisierul.
+    FILE* fptr = fopen(numeFisier, "r+");
+
+    // Citim numarul de studenti pentru ca trebuie sa-l incrementam, daca vom adauga un student.
+    int numarStudenti;
+    fread(&numarStudenti, sizeof(int), 1, fptr);
+
+    // Pentru ca am citit un intreg, trebuie sa ne ducem inapoi la inceputul fisierul pentru a il suprascrie.
+    // Facem asta cu SEEK_SET, care ne duce la inceputul fisierul. Parametrul al doilea este 0 pentru ca nu mai
+    // vrem sa avansam, odata mutati la inceput.
+    fseek(fptr, 0, SEEK_SET);
+
+    // Scriem numarul de studenti incrementat.
+    numarStudenti++;
+    fwrite(&numarStudenti, sizeof(int), 1, fptr);
+
+    // Citim iar niste date pentru un student nou.
+    printf("Introduceti datele pentru un nou student: \n");
+
+    struct student studentNou;
+    printf("ID: ");
+    scanf("%d", &studentNou.id);
+    printf("\n");
+
+    printf("Nume: ");
+    scanf("%s", studentNou.nume);
+    printf("\n");
+
+    printf("Prenume: ");
+    scanf("%s", studentNou.prenume);
+    printf("\n");
+
+    printf("Nota: ");
+    scanf("%f", &studentNou.nota);
+    printf("\n");
+
+    // Acum trebuie sa ne mutam la finalul fisierului. La fel ca atunci cand ne-am mutat la inceput,
+    // nu ne trebuie al doilea parametru, trebuie doar sa specifim SEEK_END.
+    fseek(fptr, 0, SEEK_END);
+
+    // Scriem datele unui student la final.
+    fwrite(&studentNou.id, sizeof(int), 1, fptr);
+    fwrite(studentNou.nume, sizeof(char), 20, fptr);
+    fwrite(studentNou.prenume, sizeof(char), 20, fptr);
+    fwrite(&studentNou.nota, sizeof(float), 1, fptr);
+
+    // Nu uitati sa inchideti fisierul! Este foarte important, mai ales pentru ca puteti avea cerinte
+    // ce folosesc acelasi fisier. Daca nu dati fclose la fisier (sau il aveti deschis in taskbar) nu il mai
+    // puteti deschide in alta parte, si o sa credeti ca ati gresit altceva.
+    fclose(fptr);
+}
+
+// Am tot avut nevoie sa afisez datele dintr-un vector de studenti deci am facut o sa functie.
+// Nu duplicati codul :D, faceti functii.
+void afiseazaStudenti(struct student* vectorStudenti, int numarStudenti)
+{
+    for(int i = 0; i < numarStudenti; i++)
+    {
+        printf("ID student %d \n", vectorStudenti[i].id);
+        printf("Nume %s \n", vectorStudenti[i].nume);
+        printf("Prenume %s \n", vectorStudenti[i].prenume);
+        printf("Nota %f \n", vectorStudenti[i].nota);
+        printf("================\n");
+    }
+}
+
+int main()
+{
+    // Pentru ca am modificat cerinta, facem citirea numarului de studenti si citirea
+    // datelor pentru studenti inca din main.
+    int numarStudenti = 0;
+    printf("Introduceti numarul de studenti: ");
+    scanf("%d", &numarStudenti);
+    printf("\n");
+
+    // Alocam memorie pentru numarStudenti.
+    struct student* vectorStudenti = malloc(numarStudenti * sizeof(struct student));
+
+    // Citim fiecare student. Dupa cum v-am spus, un pointer poate fi folosit ca un vector,
+    // deci putem zice vectorStudenti[i] si apoi sa folosim punct pentru a accesa un camp, dar
+    // tot trebuie sa fim atenti unde punem ampersand si unde nu. La int si la float punem, dar
+    // la cele doua siruri de caractere, nume si prenume, nu punem, pentru ca deja sunt pointeri.
+    for(int i = 0; i < numarStudenti; i++)
+    {
+        printf("Introduceti datele pentru un student nou: \n");
+
+        printf("ID: ");
+        scanf("%d", &vectorStudenti[i].id);
+        printf("\n");
+
+        printf("Nume: ");
+        scanf("%s", vectorStudenti[i].nume);
+        printf("\n");
+
+        printf("Prenume: ");
+        scanf("%s", vectorStudenti[i].prenume);
+        printf("\n");
+
+        printf("Nota: ");
+        scanf("%f", &vectorStudenti[i].nota);
+        printf("\n");
+    }
+
+    // Am pus o afisare imediat dupa citire, sa ne asiguram ca am citit bine.
+    printf("Gata cititul, avem datele astea...\n");
+    afiseazaStudenti(vectorStudenti, numarStudenti);
+
+    // Chemam functia de creare. Primul parametru este o cale relativa catre
+    // un fisier pe nume program.txt. Apoi ii dam vectorul pe care l-am citit si numarul de studenti.
+    // Am facut apoi o eliberare de memorie si am nulificat pointerul pentru ca vreau sa testez si functia
+    // de citire si vreau sa ma asigur ca nu mai am datele dinainte, sa nu cumva sa ne pacalim.
+    // Fiindca pointerul a fost nulificat, il putem refolosi pentru a primi pointerul returnat de functia de
+    // citire. Putem apoi sa chemam iar functia de afisare si sa ne asiguram ca nu exista diferente.
+    creare("program.txt", vectorStudenti, numarStudenti);
+    free(vectorStudenti);
+    vectorStudenti = NULL;
+    vectorStudenti = citire("program.txt", &numarStudenti);
+    printf("Gata cititul din fisier, avem datele astea...\n");
+    afiseazaStudenti(vectorStudenti, numarStudenti);
+
+    // Am bagat bucata asta de cod ca sa fie mai frumos output-ul din consola. Curatam fisierul stdin
+    // (nu cred ca va mai pacaliti iar :D, dar stiti deja ca e un fisier pentru input din consola, predefinit).
+    // getchar() este folosit pentru a astepta un enter de la noi. system("cls") curata consola (pe Windows, pe
+    // pe Linux trebuie sa scriem system("clear")).
+    printf("Apasati enter pentru a continua..\n");
+    fflush(stdin);
+    getchar();
+    system("cls");
+
+    // Functia de modificare este pur si simplu chemata pe fisierul nostru. Dupa asta, facem aceeasi manevra prin
+    // care eliberam memoria si nulificam pointerul, pentru a il folosi la citirea datelor modificate.
+    modificare("program.txt");
+    printf("Gata modificatul, avem datele astea...\n");
+    free(vectorStudenti);
+    vectorStudenti = NULL;
+    vectorStudenti = citire("program.txt", &numarStudenti);
+    afiseazaStudenti(vectorStudenti, numarStudenti);
+
+    printf("Apasati enter pentru a continua..\n");
+    fflush(stdin);
+    getchar();
+    system("cls");
+
+    // La fel ca la modificare. Chemam functia de adaugare si eliberam si nulificam. Citim iar si afisam.
+    adaugare("program.txt");
+    printf("Gata adaugarea, avem datele astea...\n");
+    free(vectorStudenti);
+    vectorStudenti = NULL;
+    vectorStudenti = citire("program.txt", &numarStudenti);
+    afiseazaStudenti(vectorStudenti, numarStudenti);
+
+    // O ultima eliberare si nulificare, asa de final de program :D. Este important totusi.
+    free(vectorStudenti);
+    vectorStudenti = NULL;
+    return 0;
+}

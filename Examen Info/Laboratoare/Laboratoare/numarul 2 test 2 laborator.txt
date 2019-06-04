@@ -1,0 +1,294 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define N_COD_GRAFIC 6
+
+// Am combinat putin subiectele si am ales sa fac cod_grafic de 6x6 ca la subiectul 1
+// pentru a fi mai simplu sa-mi hardcodez o matrice de test in main :D.
+
+// Structura din cerinta.
+struct produs
+{
+    char nume[30];
+    float pret;
+    char **cod_grafic;
+};
+
+// Structura pentru subiectul 4. Aceasta tine un produs si un pointer catre
+// urmatorul produs.
+struct nod
+{
+    struct produs produs;
+    struct nod* next;
+};
+
+
+struct produs* creareCitire(int* nNumarProduse)
+{
+    printf("Numarul de produse: ");
+    scanf("%d", nNumarProduse);
+
+    struct produs* pProduse = (struct produs*)malloc(*nNumarProduse* sizeof(struct produs));
+    for (int i=0; i < *nNumarProduse; i++)
+    {
+        printf("Nume produs:");
+        scanf("%s", pProduse[i].nume);
+        printf("Pret produs:");
+        scanf("%f", &pProduse[i].pret);
+
+        // Tot ce e dificil aici este alocarea dinamica compacta. Aici e greu de explicat
+        // fara un desen explicativ ca la laborator.
+
+        // Alocam 50 de pointeri, pointerul dublu cod_grafic pointand spre primul dintre ei.
+        pProduse[i].cod_grafic = (char **)malloc(N_COD_GRAFIC*sizeof(char *));
+
+        // Alocam 6x6 element, iar adresa primul element o punem in primul pointer alocat mai devreme.
+        // Practic, in acest moment noi am alocat toata nemoria ce trebuie sa fie alocata. Problema este
+        // ca doar pointerul cod_grafic[0] este pozitionat corect. Cei de la 1 la 49 sunt cu valori random initializate.
+        pProduse[i].cod_grafic[0] = (char *)malloc(N_COD_GRAFIC*N_COD_GRAFIC*sizeof(char));
+
+        for (int j=1; j < N_COD_GRAFIC; j++)
+        {
+            // Pentru a seta pointerii de la 1 la 49, luam adresa din cod_grafic si o adunam
+            // cu i*6...sau in cazul general, i*N-ul matricei cod_grafic. Astfel, pentru i=1,
+            // cod_grafic[1] va pointa la caracterul 6, pentru i=2, cod_grafic[2] va pointa la
+            // caracterul 12 si tot asa...
+            pProduse[i].cod_grafic[j] = pProduse[i].cod_grafic[0]+i*N_COD_GRAFIC;
+        }
+    }
+
+    return pProduse;
+}
+
+// Completarea este destul de simpla. Primim ca parametru matricea cheie,
+// pointerul la primul element si numarul de produse.
+void completare(int C[6][6], struct produs* pProduse, int nNumarProduse)
+{
+    // Parcurgem toate produsele.
+    for (int i=0; i < nNumarProduse; i++)
+    {
+        // Parcurgem matricea cu indexul k de linie si l de coloana.
+        for (int k=0; k < N_COD_GRAFIC; k++)
+        {
+            for (int l=0; l < N_COD_GRAFIC; l++)
+            {
+                // Aplicam formula ceruta in cerita. Tineti doar minte ca trebuie sa
+                // scriem si + '0' pentru a transforma int-ul rezultat de calculul nostru
+                // in char. Acest cast NU este implicit...
+                pProduse[i].cod_grafic[k][l] = ((C[k][l]*(i+1))%2) + '0';
+
+                // Mi-am dat seama ca formula aceasta este putin ciudata, pentru ca pentru
+                // orice i par, aceasta va umple matricea de zero, fiindca prin inmultirea cu un
+                // numar par vom avea mereu un numar par, iar numarPar % 2 este 0.
+            }
+        }
+    }
+}
+
+// Functie simpla ce numara valorile de 1 din matricea stanga-sus 2x2.
+int numarUnuTop2x2(char** cod_grafic)
+{
+    int contorUnu = 0;
+    for (int i=0; i < 2; i++)
+    {
+        for (int j=0; j < 2; j++)
+        {
+            if (cod_grafic[i][j] == '1')
+                contorUnu++;
+        }
+    }
+    return contorUnu;
+}
+
+// Functia de comparare de la qsort trebuie sa aiba mereu antetul acesta. Trebuie sa returneze
+// un int pentru ca o valoare pozitiva inseamna ca a > b, una negativa inseamna ca b > a si 0
+// inseamna ca acestea sunt egale.
+int cmpfunc (const void* a, const void* b)
+{
+    // Ne castam pointerii void la pointer la structura noastra.
+   struct produs* produsA = (struct produs*)a;
+   struct produs* produsB = (struct produs*)b;
+
+   // Calculam diferenta de lungime.
+   int diferentaLungime = strlen(produsA->nume) - strlen(produsB->nume);
+
+   // Daca numele sunt de lungimi egale, trecem la planul B, diferenta dintre
+   // numarul de 1 din matricea de 2x2 de sus.
+   if (diferentaLungime == 0)
+   {
+       return numarUnuTop2x2(produsA->cod_grafic) - numarUnuTop2x2(produsB->cod_grafic);
+   }
+
+   return diferentaLungime;
+}
+
+// qsort ia ca parametru un pointer catre primul element din lista de structuri, numarul de elemente
+// din lista, marimea unui element din lista si un pointer catre o functie ce face compararea intre
+// doua elemente din lista. Vezi comentariul la functia de comparare.
+void ordonare(struct produs* pProduse, int nNumarProduse)
+{
+    qsort(pProduse, nNumarProduse, sizeof(struct produs), cmpfunc);
+}
+
+// Functie auxiliara pentru a afisa matricea cod_grafic.
+void afisare(struct produs* pProduse, int nNumarProduse)
+{
+   for (int i=0; i < nNumarProduse; i++)
+   {
+        printf("%s \n", pProduse[i].nume);
+        printf("%f \n", pProduse[i].pret);
+        for (int j=0; j < N_COD_GRAFIC; j++)
+        {
+            for (int k=0; k < N_COD_GRAFIC; k++)
+            {
+                printf("%c ", pProduse[i].cod_grafic[j][k]);
+            }
+            printf("\n");
+        }
+   }
+}
+
+// Adaugarea final este destul de simpla.
+void adaugaSfarsit(struct nod *pHead, struct produs produs)
+{
+    // Alocam spatiu pentru nodul ce va fi adaugat.
+    struct nod *pNodNou = (struct nod*)malloc(sizeof(struct nod));
+
+    // Asignam produsul primit ca parametru in campul produs din structa
+    // de nod si ii setam next-ul ca fiind NULL pentru ca acesta va fi la
+    // sfarsitul listei.
+    pNodNou->produs = produs;
+    pNodNou->next = NULL;
+
+    // Daca cumva trebuie adaugat chiar dupa head, o facem.
+    if(pHead->next == NULL)
+    {
+        pHead->next = pNodNou;
+    }
+    else
+    {
+        // Altfel parcurgem lista pana cand dam de un nod
+        // cu next-ul NULL, stiind ca acela este ultimul.
+        struct nod *pNodCurent = pHead;
+        while (1)
+        {
+            if(pNodCurent->next == NULL)
+            {
+                // Daca am gasit ultimul nod, il legam de nodul
+                // adaugat.
+                pNodCurent->next = pNodNou;
+                break;
+            }
+            // Daca nu am gasit ultimul nod, avansam in lista.
+            pNodCurent = pNodCurent->next;
+        }
+    }
+
+    return;
+}
+
+// M-am ametit rau de tot la laborator cu explicatia de la eliminare, deci sper
+// sa fiu mai clar acum :D. Nu era tocmai corect ce v-am aratat eu la laborator,
+// pentru ca am scris codul acela pentru a elimina un singur element (adica dadeam
+// return daca gaseam un nod de eliminat). Scuze pentru confuzie...
+void stergeNoduri(struct nod **pHead, float pretParam)
+{
+    struct nod* pNodCurent = *pHead, *pNodPrecedent;
+
+    // Avem nevoie de o verificare in cazul in care inca de la primul nod
+    // avem valori mai mari decat pretParam. Acest while va elimina toate
+    // elementele din lista pana cand cel din head va fi mai mic decat pretParam.
+    while (pNodCurent != NULL && pNodCurent->produs.pret > pretParam)
+    {
+        *pHead = pNodCurent->next;
+        free(pNodCurent);
+        pNodCurent = *pHead;
+    }
+
+    while (pNodCurent != NULL)
+    {
+        // Parcurgem pana cand mai dam de un nod ce trebuie eliminat (nu indeplineste
+        // conditia din while, adica este nenul si mai mare decat pretParam). Cat timp
+        // nu dam de un nod ce trebuie eliminat, doar stim ca nodul precendent este nodul
+        // curent si avansam nodul curent pe next-ul sau.
+        while (pNodCurent != NULL && pNodCurent->produs.pret <= pretParam)
+        {
+            pNodPrecedent = pNodCurent;
+            pNodCurent = pNodCurent->next;
+        }
+
+        // Daca am ajuns la finalul listei, trebuie sa iesim.
+        if (pNodCurent == NULL)
+            return;
+
+        // Mutam legatura de nodul din urma spre nodul ce urmeaza dupa nodul curent.
+        pNodPrecedent->next = pNodCurent->next;
+
+        // In sfarsit, eliberam nodul curent.
+        free(pNodCurent);
+    }
+}
+
+void afiseazaLista(struct nod* head)
+{
+    if (head == NULL)
+        return;
+
+    printf("%f " ,head->produs.pret);
+
+    struct nod* nodCurent = head;
+    while(nodCurent->next != NULL)
+    {
+        nodCurent = nodCurent->next;
+        printf("%f ", nodCurent->produs.pret);
+    }
+}
+
+int main()
+{
+    int nNumarProduse;
+    struct produs* pProduse = NULL;
+
+    // Am hardcodat matricea cheie.
+    int C[6][6] =
+    {
+        { 1, 2, 3 , 4, 5, 6},
+        { 5, 2, 4, 2, 0, 13},
+        { 13, 14, 15, 16, 21, 42},
+        { 1, 21, 2, 5, 23, 24},
+        { 25, 32, 32, 52, 22, 30},
+        { 31, 2, 0, 66, 77, 21}
+    };
+
+    pProduse = creareCitire(&nNumarProduse);
+    completare(C, pProduse, nNumarProduse);
+    ordonare(pProduse, nNumarProduse);
+    afisare(pProduse, nNumarProduse);
+
+    // O sa iau pointerul cu care ne-am jucat pana acum si-l voi
+    // pune in forma de lista. Pentru modul in care este scrisa functia
+    // de adaugare, trebuie sa pregatim capul listei inca din main.
+    struct nod* pHead = malloc(sizeof(struct nod));
+    pHead->produs = pProduse[0];
+    pHead->next = NULL;
+
+    // Incepem sa adaugam produsele, sarind peste primul.
+    for(int i=0; i < nNumarProduse - 1;i++)
+    {
+        adaugaSfarsit(pHead, pProduse[i+1]);
+    }
+
+    float fValoare;
+    printf("Introduceti valoarea pentru eliminarea din lista: ");
+    scanf("%f", &fValoare);
+
+    printf("Inainte de stergerea valorilor mai mari decat %f\n", fValoare);
+    afiseazaLista(pHead);
+    stergeNoduri(&pHead, fValoare);
+    printf("\nDupa stergerea valorilor mai mari decat %f\n", fValoare);
+    afiseazaLista(pHead);
+
+    return 0;
+}
